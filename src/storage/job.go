@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"SignTools/src/config"
 	"archive/tar"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -47,6 +48,10 @@ func (j *signJob) writeArchive(returnJobId string, writer io.Writer) error {
 		{name: "args.txt", f2: func() (string, error) { return app.GetString(AppSignArgs) }},
 		{name: "user_bundle_id.txt", f2: func() (string, error) { return app.GetString(AppUserBundleId) }},
 	}...)
+	if config.Current.LocalTransferDir != "" {
+		// builder on the same machine: let it read the unsigned app in place instead of downloading it
+		files = append(files, fileGetter{name: "unsigned_path.txt", f2: func() (string, error) { return app.GetAbsPath(AppUnsignedFile) }})
+	}
 	if bundleName, err := app.GetString(AppBundleName); err == nil {
 		files = append(files, fileGetter{name: "bundle_name.txt", f2: func() (string, error) { return bundleName, nil }})
 	} else if !os.IsNotExist(err) {

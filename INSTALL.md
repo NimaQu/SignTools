@@ -108,7 +108,8 @@ apple_id:
   portal_bin: signtools-portal
   # default <save_dir>/portal; holds sessions and certificate private keys
   data_dir: ""
-  # anisette v3 server, e.g. a self-hosted anisette-v3-server; empty = Impactor's default
+  # anisette v3 server; empty = Impactor's default (Mac-backed). Must be Mac-backed: Apple rejects
+  # anisette from Android libraries (e.g. anisette-v3-server) since 2026-10 with SRP error -80045
   anisette_url: ""
 # this protects the web ui with a username and password
 # definitely enable it if you are using a tunnel provider

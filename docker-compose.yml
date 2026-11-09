@@ -13,17 +13,6 @@ services:
       - ./signer-cfg.yml:/signer-cfg.yml
       # apps, profiles, Apple ID sessions + certificate keys (data/portal), work dir, import dir
       - ./data:/data
-    depends_on:
-      - anisette
-
-  # anisette data for Apple ID logins, so they don't depend on a third-party server
-  anisette:
-    image: dadoum/anisette-v3-server:latest
-    restart: unless-stopped
-    expose:
-      - "6969"
-    volumes:
-      - anisette-v3:/home/Alcoholic/.config/anisette-v3/lib/
-
-volumes:
-  anisette-v3:
+# No anisette container: since 2026-10 Apple rejects Apple ID logins with anisette made by Apple's
+# Android libraries (what anisette-v3-server uses) with SRP error -80045. Logins use a Mac-backed
+# anisette v3 server instead (Impactor's default, see apple_id.anisette_url).

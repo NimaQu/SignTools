@@ -58,7 +58,6 @@ var formNames = assets.FormNames{
 	FormIdPatch:         "id_patch",
 	FormIdForceOriginal: "id_force_original",
 	FormBundleName:      "bundle_name",
-	FormFileLocal:       "file_local",
 }
 
 func main() {
@@ -378,30 +377,19 @@ func uploadSignedApp(c echo.Context, job *storage.ReturnJob) error {
 	if !ok {
 		return errors.New(fmt.Sprintf("return job %s appid %s not resolved", job.Id, job.AppId))
 	}
-	if filePath := c.FormValue("file_path"); filePath != "" {
-		// builder on the same machine handing over the signed app by path
-		safePath, err := resolveLocalTransferPath(filePath)
-		if err != nil {
-			return c.String(400, err.Error())
-		}
-		if err := app.MoveFileIn(storage.AppSignedFile, safePath); err != nil {
-			return err
-		}
-	} else {
-		fileId := c.FormValue(formNames.FormFileId)
-		upload, ok := storage.Uploads.Get(fileId)
-		if !ok {
-			return errors.New("no app upload file with id " + fileId)
-		}
-		defer storage.Uploads.Delete(fileId)
-		file, err := upload.GetData()
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		if err := app.SetFile(storage.AppSignedFile, file); err != nil {
-			return err
-		}
+	fileId := c.FormValue(formNames.FormFileId)
+	upload, ok := storage.Uploads.Get(fileId)
+	if !ok {
+		return errors.New("no app upload file with id " + fileId)
+	}
+	defer storage.Uploads.Delete(fileId)
+	file, err := upload.GetData()
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err := app.SetFile(storage.AppSignedFile, file); err != nil {
+		return err
 	}
 	if err := app.SetString(storage.AppBundleId, c.FormValue("bundle_id")); err != nil {
 		return err
@@ -410,80 +398,6 @@ func uploadSignedApp(c echo.Context, job *storage.ReturnJob) error {
 		return errors.New("unable to delete return job " + job.Id)
 	}
 	return c.NoContent(200)
-}
-
-// resolveLocalTransferPath checks that a path sent by a builder is a regular file inside local_transfer_dir.
-func resolveLocalTransferPath(filePath string) (string, error) {
-	return resolvePathInDir(config.Current.LocalTransferDir, "local_transfer_dir", filePath)
-}
-
-// resolvePathInDir checks that filePath is an absolute path to a regular file inside dir, after
-// resolving symlinks, and returns the resolved path.
-func resolvePathInDir(dir string, setting string, filePath string) (string, error) {
-	if dir == "" {
-		return "", errors.New("disabled, set " + setting)
-	}
-	baseDir, err := filepath.Abs(dir)
-	if err != nil {
-		return "", err
-	}
-	if baseDir, err = filepath.EvalSymlinks(baseDir); err != nil {
-		return "", errors.WithMessage(err, "resolve "+setting)
-	}
-	if !filepath.IsAbs(filePath) {
-		return "", errors.New("path must be absolute")
-	}
-	realPath, err := filepath.EvalSymlinks(filepath.Clean(filePath))
-	if err != nil {
-		return "", errors.WithMessage(err, "resolve path")
-	}
-	rel, err := filepath.Rel(baseDir, realPath)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", errors.New("path is outside of " + setting)
-	}
-	info, err := os.Stat(realPath)
-	if err != nil {
-		return "", err
-	}
-	if !info.Mode().IsRegular() {
-		return "", errors.New("not a regular file")
-	}
-	return realPath, nil
-}
-
-func formatSize(size int64) string {
-	const unit = 1024
-	if size < unit {
-		return fmt.Sprintf("%d B", size)
-	}
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(size)/float64(div), "KMGTPE"[exp])
-}
-
-// listImportFiles lists the apps in import_dir that can be signed from the web UI.
-func listImportFiles() ([]assets.ImportFile, error) {
-	entries, err := os.ReadDir(config.Current.ImportDir)
-	if err != nil {
-		return nil, err
-	}
-	var result []assets.ImportFile
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasPrefix(name, ".") || !strings.EqualFold(filepath.Ext(name), ".ipa") {
-			continue
-		}
-		info, err := os.Stat(filepath.Join(config.Current.ImportDir, name))
-		if err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		result = append(result, assets.ImportFile{Name: name, Size: formatSize(info.Size())})
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
-	return result, nil
 }
 
 func get2FA(c echo.Context, job *storage.ReturnJob) error {
@@ -688,19 +602,7 @@ func uploadUnsignedApp(c echo.Context) error {
 	var fileName string
 	fileId := c.FormValue(formNames.FormFileId)
 	fileUrl := c.FormValue(formNames.FormFileUrl)
-	fileLocal := c.FormValue(formNames.FormFileLocal)
-	if fileLocal != "" {
-		// an app put on the server by other means (rsync, SMB...): link it in, no copy
-		if filepath.Base(fileLocal) != fileLocal {
-			return c.String(400, "invalid file name")
-		}
-		localPath, err := resolvePathInDir(config.Current.ImportDir, "import_dir", filepath.Join(config.Current.ImportDir, fileLocal))
-		if err != nil {
-			return c.String(400, err.Error())
-		}
-		file = &storage.LocalFile{Path: localPath}
-		fileName = fileLocal
-	} else if fileUrl != "" {
+	if fileUrl != "" {
 		resp, err := http.Get(fileUrl)
 		if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
 			return c.String(400, "Failed to download app from url: "+err.Error())
@@ -859,16 +761,7 @@ func renderIndex(c echo.Context) error {
 		return err
 	}
 	data := assets.IndexData{
-		FormNames:       formNames,
-		UploadChunkSize: config.Current.UploadChunkSizeMB * 1024 * 1024,
-		ImportEnabled:   config.Current.ImportDir != "",
-	}
-	if data.ImportEnabled {
-		importFiles, err := listImportFiles()
-		if err != nil {
-			log.Err(err).Msg("list import_dir")
-		}
-		data.ImportFiles = importFiles
+		FormNames: formNames,
 	}
 	for _, app := range apps {
 		isSigned, err := app.IsSigned()

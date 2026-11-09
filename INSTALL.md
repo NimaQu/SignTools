@@ -87,18 +87,6 @@ save_dir: data
 cleanup_interval_mins: 1
 # apps that have been processing for more than this time will be marked as failed
 sign_timeout_mins: 15
-# split browser uploads into requests of this many MB, 0 = no splitting
-# set this (e.g. 50) if a proxy/CDN in front of the service limits the request size,
-# e.g. Cloudflare's 100 MB, or uploads of large apps will fail
-upload_chunk_size_mb: 0
-# a folder on this server for apps copied there by other means (rsync, SMB, scp...), e.g. very large
-# ones; the web UI's "Server" switch lists the .ipa files in it. They are hard-linked into save_dir
-# (no copy, the file stays in place), which needs both on the same filesystem/mount. Empty = off.
-import_dir: ""
-# when the builder runs on the same machine (see SignTools-Builder's linux/ folder): it works inside
-# this folder and the two exchange apps by path instead of over HTTP. It must see the folder and
-# save_dir at the same paths as this service. Empty = off.
-local_transfer_dir: ""
 # this protects the web ui with a username and password
 # definitely enable it if you are using a tunnel provider
 basic_auth:

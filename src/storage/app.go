@@ -31,23 +31,7 @@ type App interface {
 	GetModTime() (time.Time, error)
 	ResetModTime() error
 	delete() error
-	GetAbsPath(name FSName) (string, error)
-	MoveFileIn(name FSName, srcPath string) error
 	FileSystem
-}
-
-// LocalFile is an unsigned app that is already on this machine (import_dir). It is hard-linked into
-// the app's storage instead of being read and copied.
-type LocalFile struct {
-	Path string
-}
-
-func (f *LocalFile) Read([]byte) (int, error) {
-	return 0, errors.New("LocalFile is linked, not read")
-}
-
-func (f *LocalFile) Close() error {
-	return nil
 }
 
 func loadApp(id string) App {
@@ -71,11 +55,7 @@ func createApp(unsignedFile io.Reader, name string, profile Profile, signArgs st
 			return nil, errors.WithMessagef(err, "set %s", fileType)
 		}
 	}
-	if local, ok := unsignedFile.(*LocalFile); ok {
-		if err := app.LinkFileIn(AppUnsignedFile, local.Path); err != nil {
-			return nil, errors.WithMessagef(err, "link %s", AppUnsignedFile)
-		}
-	} else if err := app.SetFile(AppUnsignedFile, unsignedFile); err != nil {
+	if err := app.SetFile(AppUnsignedFile, unsignedFile); err != nil {
 		return nil, errors.WithMessagef(err, "set %s", AppUnsignedFile)
 	}
 	if len(tweakMap) > 0 {

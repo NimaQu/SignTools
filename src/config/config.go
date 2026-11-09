@@ -51,9 +51,6 @@ type File struct {
 	SaveDir             string    `yaml:"save_dir"`
 	CleanupIntervalMins uint64    `yaml:"cleanup_interval_mins"`
 	SignTimeoutMins     uint64    `yaml:"sign_timeout_mins"`
-	UploadChunkSizeMB   uint64    `yaml:"upload_chunk_size_mb"` // browser upload request size, 0 = no chunking
-	LocalTransferDir    string    `yaml:"local_transfer_dir"`   // builder on the same machine: exchange files by path, "" = off
-	ImportDir           string    `yaml:"import_dir"`           // apps put on the server (rsync, SMB...) to sign from the web UI, "" = off
 	BasicAuth           BasicAuth `yaml:"basic_auth"`
 }
 

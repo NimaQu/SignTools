@@ -99,17 +99,9 @@
                   <div class="mb-2">
                     <div class="d-flex justify-content-between">
                       <label class="form-label">App file</label>
-                      <div class="d-flex gap-3">
-                        {{- if .ImportEnabled }}
-                        <div class="form-check form-switch">
-                          <input class="form-check-input" type="checkbox" role="switch" id="formFileUseLocal" />
-                          <label class="form-check-label" for="formFileUseLocal">Server</label>
-                        </div>
-                        {{- end }}
-                        <div class="form-check form-switch">
-                          <input class="form-check-input" type="checkbox" role="switch" id="formFileUseUrl" />
-                          <label class="form-check-label" for="formFileUseUrl">URL</label>
-                        </div>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="formFileUseUrl" />
+                        <label class="form-check-label" for="formFileUseUrl">URL</label>
                       </div>
                     </div>
                     <input class="form-control" type="file" id="formFileSelect" required />
@@ -123,14 +115,6 @@
                       hidden
                       required
                     />
-                    {{- if .ImportEnabled }}
-                    <select class="form-select" id="formFileLocal" name="{{.FormFileLocal}}" hidden disabled required>
-                      <option selected disabled value="">{{if .ImportFiles}}Choose a file on the server...{{else}}No .ipa files in import_dir{{end}}</option>
-                      {{- range $_, $f := .ImportFiles }}
-                      <option value="{{$f.Name}}">{{$f.Name}} ({{$f.Size}})</option>
-                      {{- end }}
-                    </select>
-                    {{- end }}
                     <input
                       class="form-control"
                       type="text"
@@ -476,8 +460,6 @@
     const formFileText = document.getElementById("formFileText");
     const formFileUseUrl = document.getElementById("formFileUseUrl");
     const formFileUrl = document.getElementById("formFileUrl");
-    const formFileLocal = document.getElementById("formFileLocal");
-    const formFileUseLocal = document.getElementById("formFileUseLocal");
     const formTweakIds = document.getElementById("formTweakIds");
     const formTweaksSelect = document.getElementById("formTweaksSelect");
     const formSubmit = document.getElementById("formSubmit");
@@ -521,9 +503,6 @@
     uppy.use(Uppy.Tus, {
       endpoint: "/tus/",
       parallelUploads: 6,
-      {{- if .UploadChunkSize }}
-      chunkSize: {{ .UploadChunkSize }},
-      {{- end }}
     });
 
     function addTusFileHook(formItem, uploadType) {
@@ -568,12 +547,6 @@
         formFileUrl.disabled = true;
         formFileUseUrl.disabled = true;
         formFileUseUrl.checked = false;
-        if (formFileLocal) {
-          formFileLocal.hidden = true;
-          formFileLocal.disabled = true;
-          formFileUseLocal.disabled = true;
-          formFileUseLocal.checked = false;
-        }
         modal.show();
       });
     }
@@ -583,11 +556,10 @@
       formFileText.value = "";
       formFileSelect.hidden = false;
       formFileSelect.disabled = false;
+      formFileUrl.hidden = true;
+      formFileUrl.disabled = true;
       formFileUseUrl.disabled = false;
-      if (formFileUseLocal) {
-        formFileUseLocal.disabled = false;
-      }
-      setFileMode("upload");
+      formFileUseUrl.checked = false;
       modal.show();
     });
     btnModalClose.addEventListener("click", function () {
@@ -632,27 +604,12 @@
       });
     });
 
-    // which input provides the app: "upload" (browser), "url" or "local" (a file in import_dir)
-    function setFileMode(mode) {
-      formFileSelect.hidden = mode !== "upload";
-      formFileSelect.disabled = mode !== "upload";
-      formFileUrl.hidden = mode !== "url";
-      formFileUrl.disabled = mode !== "url";
-      formFileUseUrl.checked = mode === "url";
-      if (formFileLocal) {
-        formFileLocal.hidden = mode !== "local";
-        formFileLocal.disabled = mode !== "local";
-        formFileUseLocal.checked = mode === "local";
-      }
-    }
     formFileUseUrl.addEventListener("change", function () {
-      setFileMode(formFileUseUrl.checked ? "url" : "upload");
+      formFileSelect.hidden = !formFileSelect.hidden;
+      formFileSelect.disabled = !formFileSelect.disabled;
+      formFileUrl.hidden = !formFileUrl.hidden;
+      formFileUrl.disabled = !formFileUrl.disabled;
     });
-    if (formFileUseLocal) {
-      formFileUseLocal.addEventListener("change", function () {
-        setFileMode(formFileUseLocal.checked ? "local" : "upload");
-      });
-    }
     formProfile.addEventListener("change", function () {
       const selectedOption = formProfile.options[formProfile.selectedIndex];
       if (selectedOption.getAttribute("account") === "true") {

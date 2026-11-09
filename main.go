@@ -206,10 +206,7 @@ func renderInstall(c echo.Context, app storage.App) error {
 			Host:   "ota.signtools.workers.dev",
 			Path:   "/v1",
 		}
-		name, err := app.GetString(storage.AppName)
-		if err != nil {
-			logErrApp(err, app).Msg("get name")
-		}
+		name, _, _ := appTitle(app)
 		bundleId, _ := app.GetString(storage.AppBundleId)
 
 		query := url.Values{
@@ -223,10 +220,10 @@ func renderInstall(c echo.Context, app storage.App) error {
 	if usingManifestProxy {
 		log.Warn().Str("base_url", getBaseUrl(c)).Msg("using OTA manifest proxy, installation may not work")
 	}
-	appName, err := app.GetString(storage.AppName)
-	if err != nil {
+	if _, err := app.GetString(storage.AppName); err != nil {
 		return err
 	}
+	appName, _, _ := appTitle(app)
 	data := assets.InstallData{
 		ManifestUrl: manifestUrl,
 		AppName:     appName,
@@ -592,9 +589,13 @@ func makeManifest(baseUrl string, app storage.App) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	appName, err := app.GetString(storage.AppName)
-	if err != nil {
+	if _, err := app.GetString(storage.AppName); err != nil {
 		return nil, err
+	}
+	appName, _, info := appTitle(app)
+	version := ""
+	if info != nil {
+		version = info.Version
 	}
 	bundleId, err := app.GetString(storage.AppBundleId)
 	if err != nil {
@@ -608,6 +609,7 @@ func makeManifest(baseUrl string, app storage.App) ([]byte, error) {
 		DownloadUrl: downloadUrl,
 		BundleId:    bundleId,
 		Title:       appName,
+		Version:     version,
 	}
 	var result bytes.Buffer
 	if err := t.Execute(&result, data); err != nil {
@@ -898,10 +900,10 @@ func renderIndex(c echo.Context) error {
 		if err != nil {
 			return errors.WithMessage(err, "get mod time")
 		}
-		name, err := app.GetString(storage.AppName)
-		if err != nil {
+		if _, err := app.GetString(storage.AppName); err != nil {
 			logErrApp(err, app).Msg("get name")
 		}
+		name, fileName, ipaInfo := appTitle(app)
 		workflowUrl, err := app.GetString(storage.AppWorkflowUrl)
 		if err != nil {
 			logErrApp(err, app).Msg("get workflow url")
@@ -949,6 +951,8 @@ func renderIndex(c echo.Context) error {
 			Id:                  app.GetId(),
 			Status:              status,
 			Name:                name,
+			FileName:            fileName,
+			Details:             appDetails(ipaInfo),
 			ModTime:             modTime.Format(time.RFC822),
 			WorkflowUrl:         workflowUrl,
 			ProfileName:         profileName,

@@ -91,6 +91,14 @@ logs=$(curl -fsS $B/local-builder)
 [[ -n "$app" && -s "data/apps/$app/signed" ]] || { echo "$logs" | tail -60; fail "signing did not finish"; }
 grep -q ">done<" <<<"$logs" || fail "log page does not show the job as done"
 
+# the card shows the display name with the IPA's version and size, the manifest the version
+index=$(curl -fsS $B/)
+grep -q '>Demo Signed</h5>' <<<"$index" && grep -q 'mb-1" style="word-break: break-all">Demo (Demo Signed).ipa</div>' <<<"$index" || fail "app title/file name not shown"
+grep -q '1.0 (1) · [0-9.]* [KM]\?i\?B · iOS 14.0' <<<"$index" || fail "IPA version/size not shown"
+[[ -s data/apps/$app/ipa_info.json ]] || fail "IPA info not cached"
+manifest=$(curl -fsS $B/apps/$app/manifest)
+grep -q '<string>1.0</string>' <<<"$manifest" && grep -q '<string>Demo Signed</string>' <<<"$manifest" || fail "manifest version/title"
+
 plain=$(sed 's/\x1b\[[0-9;]*m//g' server.log)
 echo "HTTP downloads of the unsigned app: $(grep -c "uri=/jobs/[^ ]*/unsigned" <<<"$plain" || true)"
 echo "tus uploads of the signed app:      $(grep -c "uri=/jobs/[^ ]*/tus/" <<<"$plain" || true)"

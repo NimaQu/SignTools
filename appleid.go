@@ -4,6 +4,7 @@ import (
 	"SignTools/src/assets"
 	"SignTools/src/builders"
 	"SignTools/src/config"
+	"SignTools/src/ipainfo"
 	"SignTools/src/portal"
 	"SignTools/src/storage"
 	htmlTemplate "html/template"
@@ -335,4 +336,38 @@ func appFailHint(app storage.App, profileId string) (hint string, link string, l
 		return "The team is no longer available for this Apple ID.", "/appleid", "Pick another team"
 	}
 	return "", "", ""
+}
+
+// appTitle is how an app is shown: the name it was given (renamed by the user) or, while that is still
+// just the uploaded file's name, the custom display name for signing or the IPA's own display name.
+func appTitle(app storage.App) (title string, fileName string, info *ipainfo.Info) {
+	name, _ := app.GetString(storage.AppName)
+	info = storage.GetIpaInfo(app)
+	lower := strings.ToLower(name)
+	if !strings.HasSuffix(lower, ".ipa") && !strings.HasSuffix(lower, ".tipa") {
+		return name, "", info
+	}
+	if bundleName, err := app.GetString(storage.AppBundleName); err == nil && strings.TrimSpace(bundleName) != "" {
+		return strings.TrimSpace(bundleName), name, info
+	}
+	if info != nil && info.Name != "" {
+		return info.Name, name, info
+	}
+	return name, "", info
+}
+
+// appDetails is the info line of an app card: version, size, minimum iOS.
+func appDetails(info *ipainfo.Info) string {
+	if info == nil {
+		return ""
+	}
+	var parts []string
+	if v := info.VersionString(); v != "" {
+		parts = append(parts, v)
+	}
+	parts = append(parts, ipainfo.FormatSize(info.Size))
+	if info.MinOS != "" {
+		parts = append(parts, "iOS "+info.MinOS+"+")
+	}
+	return strings.Join(parts, " · ")
 }

@@ -21,6 +21,10 @@ type App struct {
 	FailHint     string
 	FailLink     string
 	FailLinkText string
+	// from the IPA's Info.plist: "1.2.1 (121) · 16.5 GiB · iOS 17.0+", and the uploaded file's name
+	// when the title is the app's display name instead
+	Details  string
+	FileName string
 }
 
 const (
@@ -88,6 +92,7 @@ type ManifestData struct {
 	DownloadUrl string
 	BundleId    string
 	Title       string
+	Version     string
 }
 
 type RenameData struct {

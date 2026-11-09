@@ -24,7 +24,9 @@ const (
 	AppBundleName   = FSName("bundle_name")
 	// why the last signing failed, if the signer said (e.g. "appleid_session_expired")
 	AppFailReason = FSName("fail_reason")
-	TweaksDir     = FSName("tweaks")
+	// cached name / version / size read from the IPA's Info.plist
+	AppIpaInfo = FSName("ipa_info.json")
+	TweaksDir  = FSName("tweaks")
 )
 
 type App interface {
@@ -80,6 +82,7 @@ func createApp(unsignedFile io.Reader, name string, profile Profile, signArgs st
 	} else if err := app.SetFile(AppUnsignedFile, unsignedFile); err != nil {
 		return nil, errors.WithMessagef(err, "set %s", AppUnsignedFile)
 	}
+	refreshIpaInfo(app)
 	if len(tweakMap) > 0 {
 		if err := app.MkDir(TweaksDir); err != nil {
 			return nil, err

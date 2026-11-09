@@ -416,7 +416,10 @@
             <div class="card-body">
               <div class="row">
                 <div class="col pe-0">
-                  <h5 class="card-title" style="word-break: break-all">{{$app.Name}}</h5>
+                  <h5 class="card-title mb-1" style="word-break: break-all">{{$app.Name}}</h5>
+                  {{- if $app.FileName }}
+                  <div class="app-file text-muted small mb-1" style="word-break: break-all">{{$app.FileName}}</div>
+                  {{- end }}
                 </div>
                 <div class="col-auto">
                   <div class="dropdown">
@@ -433,6 +436,8 @@
                 </div>
               </div>
               <p class="card-text mb-2">
+                {{- if $app.Details }} {{$app.Details}} <br />
+                {{- end }}
                 {{if gt $app.TweakCount 0}} {{$app.TweakCount}} tweaks <br />
                 {{end}} {{if eq $app.Status 1 }} {{$app.BundleId}} <br />
                 {{end}} {{$app.ProfileName}} <br />
@@ -702,7 +707,9 @@
       }
       let searchText = inputSearchFilter.value.toLowerCase();
       for (let app of document.getElementsByClassName("appItem")) {
-        if (app.querySelector(".card-title").textContent.toLowerCase().includes(searchText)) {
+        const fileName = app.querySelector(".app-file");
+        const text = app.querySelector(".card-title").textContent + (fileName ? " " + fileName.textContent : "");
+        if (text.toLowerCase().includes(searchText)) {
           app.hidden = false;
         } else {
           app.hidden = true;

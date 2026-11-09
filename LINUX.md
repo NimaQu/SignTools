@@ -19,10 +19,11 @@ mkdir -p data/import
 docker compose up -d --build
 ```
 
-compose 里有两个容器：
+compose 里只有 `signtools` 一个容器，网页、签名和 portal 都在里面。
 
-- `signtools`：网页、签名和 portal 都在这里
-- `anisette`：[anisette-v3-server](https://github.com/Dadoum/anisette-v3-server)，登录 Apple ID 需要的 anisette 数据由它提供，不依赖第三方服务器
+登录 Apple ID 需要的 anisette 数据，默认用 Impactor 的公共服务器 `https://mac-ani.jkcoxson.com`。它背后是一台 Mac，只负责生成设备标识，看不到你的 Apple ID、密码和 token。**不要换成自建的 [anisette-v3-server](https://github.com/Dadoum/anisette-v3-server)**：它用的是 Apple 的 Android 库，从 2026 年 10 月起 Apple 拒绝这类数据，登录会报 `SRP error -80045`。要自建的话，只能用跑在 Mac 上的 anisette v3 服务。
+
+换过 anisette 服务器之后，要删掉 `data/portal/anisette/state.plist`，让它重新注册一次设备身份。
 
 iOS 一键安装需要有效的 HTTPS，在前面放 Caddy 或 nginx 反代到 `:8080`（nginx 要透传 `Host` 和 `X-Forwarded-Proto`）。
 
@@ -68,7 +69,7 @@ App ID 在整个苹果生态里是唯一的。选「保留原 ID」时，会先�
 | `apple_id.enable` | 启用 Apple ID 页面和对应的签名配置 |
 | `apple_id.portal_bin` | portal 程序，默认 `signtools-portal` |
 | `apple_id.data_dir` | 会话和证书私钥的存放目录，默认 `<save_dir>/portal`，**请妥善保管** |
-| `apple_id.anisette_url` | anisette v3 服务器地址，为空则使用 Impactor 默认的公共服务器 |
+| `apple_id.anisette_url` | anisette v3 服务器地址，为空则使用 Impactor 默认的 Mac 服务器；必须是 Mac 生成数据的服务 |
 | `import_dir` | 服务器上用来放待签名 IPA 的目录 |
 | `local_transfer_dir` | 按路径交换文件的目录。使用 `builder.local` 时会自动设置，一般不用管 |
 

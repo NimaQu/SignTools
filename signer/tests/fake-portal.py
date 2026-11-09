@@ -8,6 +8,8 @@ Stand-in for signtools-portal in tests: same commands and JSON protocol, no Appl
 - provision: bundle ids listed in FAKE_TAKEN_IDS are "registered by someone else" (Apple result code
   9401); otherwise returns a CMS-signed development profile for the team that grants exactly the
   requested capabilities it knows (increased-memory-limit, extended-virtual-addressing)
+- the saved session counts as expired while <data>/expired exists (logging in removes it), and cert
+  reports team_missing for a team that isn't in the list, like signtools-portal
 - every call is appended to <data>/calls.log
 """
 import json
@@ -32,8 +34,9 @@ def emit(obj):
     print(json.dumps(obj), flush=True)
 
 
-def fail(msg, code=None):
-    emit({"ok": False, "event": "error", "error": msg, "code": code})
+def fail(msg, code=None, session_expired=False, team_missing=False):
+    emit({"ok": False, "event": "error", "error": msg, "code": code,
+          "session_expired": session_expired, "team_missing": team_missing})
     sys.exit(1)
 
 
@@ -61,7 +64,10 @@ def arg(name):
 def need_account():
     email = arg("--email")
     if email not in accounts():
-        fail(f"no saved account {email}, log in first")
+        fail(f"Apple ID session expired or missing, log in again (no saved session for {email})", session_expired=True)
+    if (DATA / "expired").exists():
+        fail("Apple ID session expired or missing, log in again (Developer API error 1100: Your session has expired)",
+             1100, session_expired=True)
     return email
 
 
@@ -104,6 +110,7 @@ def main():
         a = accounts()
         a[creds["email"]] = {"first_name": "Jane"}
         save_accounts(a)
+        (DATA / "expired").unlink(missing_ok=True)
         emit({"event": "done", "ok": True, "email": creds["email"], "teams": TEAMS})
     elif cmd == "accounts":
         emit({"ok": True, "accounts": [{"email": e, "first_name": v["first_name"]} for e, v in accounts().items()]})
@@ -118,6 +125,8 @@ def main():
     elif cmd == "cert":
         need_account()
         team = arg("--team")
+        if team not in [t["id"] for t in TEAMS]:
+            fail(f"team {team} is no longer available for this Apple ID", team_missing=True)
         key, cert, new = team_cert(team)
         Path(arg("--out")).write_text(key.read_text() + cert.read_text())
         emit({"ok": True, "new": new, "serial": "01"})

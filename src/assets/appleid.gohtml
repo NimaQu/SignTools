@@ -70,17 +70,38 @@
       </p>
 
       {{- range .Accounts }}
-      <div class="card mb-3 account" data-email="{{ .Email }}">
+      <div class="card mb-3 account{{ if .Relogin }} border-danger{{ end }}" data-email="{{ .Email }}">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <span><strong>{{ .Email }}</strong>{{ if .FirstName }} ({{ .FirstName }}){{ end }}</span>
+          <span>
+            <strong>{{ .Email }}</strong>{{ if .FirstName }} ({{ .FirstName }}){{ end }}
+            {{- if .SessionExpired }}
+            <span class="badge bg-danger ms-2 session-status" data-status="expired">Session expired</span>
+            {{- else if .TeamsError }}
+            <span class="badge bg-warning text-dark ms-2 session-status" data-status="unknown" title="Could not reach Apple; the session itself may be fine">Status unknown</span>
+            {{- else }}
+            <span class="badge bg-success ms-2 session-status" data-status="valid">Session valid</span>
+            {{- end }}
+          </span>
           <form method="post" action="/appleid/logout" class="m-0">
             <input type="hidden" name="email" value="{{ .Email }}" />
             <button class="btn btn-sm btn-outline-danger" type="submit">Log out</button>
           </form>
         </div>
         <ul class="list-group list-group-flush">
-          {{- if .TeamsError }}
-          <li class="list-group-item text-danger">Could not list teams: {{ .TeamsError }} (log in again if the session expired)</li>
+          {{- if .SessionExpired }}
+          <li class="list-group-item">
+            <p class="text-danger mb-2">Apple no longer accepts the saved session: {{ .TeamsError }}</p>
+            <form method="post" action="/appleid/login" class="row g-2 relogin">
+              <input type="hidden" name="email" value="{{ .Email }}" />
+              <div class="col-md-8">
+                <input class="form-control" type="password" name="password" placeholder="Password for {{ .Email }}" required {{ if .Relogin }}autofocus{{ end }} />
+              </div>
+              <div class="col-md-4"><button class="btn btn-danger w-100" type="submit">Log in again</button></div>
+            </form>
+            <p class="small text-muted mt-2 mb-0">Your signing profiles and certificate are kept.</p>
+          </li>
+          {{- else if .TeamsError }}
+          <li class="list-group-item text-danger">Could not list teams: {{ .TeamsError }}</li>
           {{- end }}
           {{- $email := .Email }}
           {{- range .Teams }}
@@ -115,7 +136,7 @@
 
       <h5 class="mt-4">Log in</h5>
       <form method="post" action="/appleid/login" class="row g-2" id="formLogin">
-        <div class="col-md-5"><input class="form-control" type="email" name="email" placeholder="Apple ID" required /></div>
+        <div class="col-md-5"><input class="form-control" type="email" name="email" placeholder="Apple ID" value="{{ .LoginEmail }}" required /></div>
         <div class="col-md-4"><input class="form-control" type="password" name="password" placeholder="Password" required /></div>
         <div class="col-md-3"><button class="btn btn-primary w-100" type="submit">Log in</button></div>
       </form>

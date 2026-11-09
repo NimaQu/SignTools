@@ -44,6 +44,9 @@ type Event struct {
 	Phones   []Phone   `json:"phones"`
 	Teams    []Team    `json:"teams"`
 	Accounts []Account `json:"accounts"`
+	// Apple rejected the saved session (or there is none): log in again
+	SessionExpired bool `json:"session_expired"`
+	TeamMissing    bool `json:"team_missing"`
 }
 
 type Client struct {
@@ -115,6 +118,15 @@ func (c *Client) Teams(email string) ([]Team, error) {
 		return nil, err
 	}
 	return ev.Teams, nil
+}
+
+// TeamsStatus lists the teams and tells whether a failure means the session must be renewed.
+func (c *Client) TeamsStatus(email string) (teams []Team, sessionExpired bool, err error) {
+	ev, err := c.Run("teams", "--email", email)
+	if ev != nil {
+		teams, sessionExpired = ev.Teams, ev.SessionExpired
+	}
+	return teams, sessionExpired, err
 }
 
 func (c *Client) Logout(email string) error {

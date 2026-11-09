@@ -19,7 +19,10 @@
 //!                               ensure an explicit App ID, enable the capabilities the app's entitlements ask
 //!                               for (e.g. Increased Memory Limit), download its team provisioning profile
 //!
-//! Errors: {"ok": false, "error": "...", "code": <Apple result code, if any>} and exit code 1.
+//! Errors: {"ok": false, "error": "...", "code": <Apple result code, if any>,
+//!          "session_expired": bool, "team_missing": bool} and exit code 1.
+//! Like Impactor, every command that needs the account first checks the saved session by listing the
+//! teams; "session_expired" means Apple rejected it (log in again), not a network or anisette problem.
 
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -35,6 +38,39 @@ use serde_json::{Value, json};
 
 /// Machine name of the certificates this tool creates (Impactor uses "AltStore").
 const MACHINE_NAME: &str = "SignTools";
+
+/// The saved session was rejected by Apple: the user has to log in again.
+#[derive(Debug)]
+struct SessionExpired(String);
+
+impl std::fmt::Display for SessionExpired {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Apple ID session expired or missing, log in again ({})", self.0)
+    }
+}
+impl std::error::Error for SessionExpired {}
+
+/// The team is no longer one of the account's teams.
+#[derive(Debug)]
+struct TeamMissing(String);
+
+impl std::fmt::Display for TeamMissing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "team {} is no longer available for this Apple ID", self.0)
+    }
+}
+impl std::error::Error for TeamMissing {}
+
+/// Whether restoring a session failed because Apple rejected it (an answer from the developer
+/// services that is an error or not even a plist, e.g. a login page), as opposed to the request
+/// not getting through (network, anisette).
+fn is_session_rejection(e: &plume_core::Error) -> bool {
+    match e {
+        plume_core::Error::DeveloperApi { .. } | plume_core::Error::Plist(_) => true,
+        plume_core::Error::GeneralHttpError { status, .. } => matches!(status, 401 | 403),
+        _ => false,
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "signtools-portal", version, about)]
@@ -111,10 +147,27 @@ async fn session(data: &Path, email: &str) -> Result<DeveloperSession> {
     let store = store(data).await?;
     let account = store
         .get_account(email)
-        .ok_or_else(|| anyhow!("no saved account {email}, log in first"))?;
+        .ok_or_else(|| anyhow!(SessionExpired(format!("no saved session for {email}"))))?;
+    // DeveloperSession::new tests the session by listing the teams, like Impactor does before signing
     DeveloperSession::new(account.adsid().clone(), account.xcode_gs_token().clone(), anisette(data))
         .await
-        .map_err(|e| anyhow!(e).context("restore session (log in again if it expired)"))
+        .map_err(|e| {
+            if is_session_rejection(&e) {
+                anyhow!(SessionExpired(e.to_string()))
+            } else {
+                anyhow!(e).context("restore session")
+            }
+        })
+}
+
+/// Impactor also checks that the stored team is still one of the account's teams.
+async fn ensure_team(session: &DeveloperSession, team: &str) -> Result<()> {
+    let teams = session.qh_list_teams().await?.teams;
+    if teams.iter().any(|t| t.team_id == team) {
+        Ok(())
+    } else {
+        Err(anyhow!(TeamMissing(team.to_string())))
+    }
 }
 
 async fn teams_json(session: &DeveloperSession) -> Result<Value> {
@@ -169,6 +222,7 @@ async fn login(data: &Path) -> Result<Value> {
 
 async fn cert(data: &Path, email: &str, team: &String, out: &Path, allow_reset: bool) -> Result<Value> {
     let session = session(data, email).await?;
+    ensure_team(&session, team).await?;
     let mut reset_requested = false;
     let mut on_reset = || {
         reset_requested = true;
@@ -270,7 +324,12 @@ fn error_json(err: &anyhow::Error) -> Value {
         Some(plume_core::Error::DeveloperApi { result_code, .. }) => Some(*result_code),
         _ => None,
     });
-    json!({"ok": false, "event": "error", "error": format!("{err:#}"), "code": code})
+    let session_expired = err.chain().any(|e| e.downcast_ref::<SessionExpired>().is_some());
+    let team_missing = err.chain().any(|e| e.downcast_ref::<TeamMissing>().is_some());
+    json!({
+        "ok": false, "event": "error", "error": format!("{err:#}"), "code": code,
+        "session_expired": session_expired, "team_missing": team_missing,
+    })
 }
 
 #[tokio::main]

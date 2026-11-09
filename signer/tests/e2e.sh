@@ -108,6 +108,36 @@ fi
 curl -fsS -o signed.ipa "$B/apps/$app/signed"
 EXPECT_SIGNER="$EXPECT_SIGNER" python3 "$ROOT/tests/verify-ipa.py" signed.ipa "$TEAM" memory
 
+if [[ "$MODE" == appleid ]]; then
+  # the saved session expires: the Apple ID page says so, signing fails with a hint, logging in fixes it
+  touch data/portal/expired
+  page=$(curl -fsS $B/appleid)
+  grep -q 'data-status="expired"' <<<"$page" && grep -q 'class="row g-2 relogin"' <<<"$page" || fail "expired session not shown"
+  curl -fsS -o /dev/null "$B/apps/$app/resign"
+  for _ in $(seq 1 60); do
+    index=$(curl -fsS $B/)
+    grep -q 'fail-hint' <<<"$index" && break
+    sleep 1
+  done
+  grep -q 'The Apple ID session expired' <<<"$index" || fail "no session-expired hint on the failed app"
+  link=$(grep -o 'href="/appleid?relogin=[^"]*"' <<<"$index" | head -1 | cut -d'"' -f2)
+  [[ "$link" == "/appleid?relogin=jane%40example.com" ]] || fail "bad re-login link: $link"
+  page=$(curl -fsS "$B$link")
+  grep -q 'account border-danger' <<<"$page" && grep -q 'value="jane@example.com" required' <<<"$page" || fail "re-login link does not highlight/prefill"
+  echo "expired session: shown on the Apple ID page, failed app links to re-login"
+  page=$(curl -fsS -X POST $B/appleid/login -d email=jane@example.com -d password=secret)
+  login=$(grep -o 'action="/appleid/login/[0-9a-f-]*"' <<<"$page" | head -1 | cut -d/ -f4 | tr -d '"')
+  code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$B/appleid/login/$login" -d code=123456)
+  [[ "$code" == 302 ]] || fail "re-login failed ($code)"
+  grep -q 'data-status="valid"' <(curl -fsS $B/appleid) || fail "session not valid after re-login"
+  curl -fsS -o /dev/null "$B/apps/$app/resign"
+  for _ in $(seq 1 90); do [[ -s "data/apps/$app/signed" ]] && break; sleep 1; done
+  [[ -s "data/apps/$app/signed" ]] || fail "re-sign after re-login did not finish"
+  ! grep -q 'fail-hint' <(curl -fsS $B/) || fail "fail hint still shown after re-sign"
+  [[ ! -e "data/apps/$app/fail_reason" ]] || fail "fail reason not cleared"
+  echo "re-login kept the signing profile; re-sign works again"
+fi
+
 # delete the signing profile through the web UI
 page=$(curl -fsS $B/profiles)
 grep -q "data-id=\"$profile\"" <<<"$page" || fail "profile not on the profiles page"

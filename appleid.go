@@ -70,6 +70,8 @@ func setupLocalSigning(port uint64) {
 
 func registerAppleIdRoutes(e *echo.Echo, basicAuth func(echo.HandlerFunc) echo.HandlerFunc) {
 	e.GET("/local-builder", renderLocalBuilder, basicAuth)
+	e.GET("/profiles", func(c echo.Context) error { return renderProfiles(c, "") }, basicAuth)
+	e.POST("/profiles/:id/delete", deleteProfile, basicAuth)
 	if portalClient == nil {
 		return
 	}
@@ -138,9 +140,64 @@ func renderAppleId(c echo.Context, page appleIdPage) error {
 	return t.Execute(c.Response(), page)
 }
 
+type profileView struct {
+	Id   string
+	Name string
+	Kind string
+}
+
+func renderProfiles(c echo.Context, errMsg string) error {
+	profiles, err := storage.Profiles.GetAll()
+	if err != nil && errMsg == "" {
+		errMsg = err.Error()
+	}
+	page := struct {
+		Profiles       []profileView
+		AppleIdEnabled bool
+		Error          string
+		Message        string
+	}{AppleIdEnabled: portalClient != nil, Error: errMsg, Message: c.QueryParam("message")}
+	for _, profile := range profiles {
+		name, err := profile.GetString(storage.ProfileName)
+		if err != nil {
+			name = profile.GetId()
+		}
+		page.Profiles = append(page.Profiles, profileView{Id: profile.GetId(), Name: name, Kind: storage.ProfileKind(profile)})
+	}
+	t, err := htmlTemplate.New("").Parse(assets.ProfilesHtml)
+	if err != nil {
+		return err
+	}
+	return t.Execute(c.Response(), page)
+}
+
+func deleteProfile(c echo.Context) error {
+	id := c.Param("id")
+	profile, ok := storage.Profiles.GetById(id)
+	if !ok {
+		return renderProfiles(c, "no signing profile "+id)
+	}
+	name, err := profile.GetString(storage.ProfileName)
+	if err != nil {
+		name = id
+	}
+	if err := storage.DeleteProfile(id); err != nil {
+		return renderProfiles(c, err.Error())
+	}
+	back := "/profiles"
+	if c.FormValue("return") == "appleid" {
+		back = "/appleid"
+	}
+	return c.Redirect(http.StatusFound, back+"?message="+url.QueryEscape("Deleted signing profile "+name))
+}
+
 func appleIdLoginResult(c echo.Context, login *portal.Login, ev *portal.Event, err error) error {
 	if err != nil {
 		return renderAppleId(c, appleIdPage{Error: "Login failed: " + err.Error()})
+	}
+	if ev.Event == "error" && strings.Contains(ev.Error, "-80045") {
+		ev.Error += " (Apple also answers a wrong password this way; if the password is right, the anisette " +
+			"server is probably rejected, see apple_id.anisette_url)"
 	}
 	switch ev.Event {
 	case "2fa":

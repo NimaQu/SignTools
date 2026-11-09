@@ -21,6 +21,9 @@ var RenameHtml string
 //go:embed appleid.gohtml
 var AppleIdHtml string
 
+//go:embed profiles.gohtml
+var ProfilesHtml string
+
 //go:embed localbuilder.gohtml
 var LocalBuilderHtml string
 

@@ -86,12 +86,46 @@ func DeleteAppleIdProfiles(email string) error {
 		if owner, _ := p.GetString(ProfileAppleId); owner != email {
 			continue
 		}
-		if err := os.RemoveAll(p.resolvePath(ProfileRoot)); err != nil {
+		if err := DeleteProfile(p.id); err != nil {
 			return err
 		}
-		Profiles.remove(p.id)
 	}
 	return nil
+}
+
+// DeleteProfile removes a signing profile and its files (certificate, provisioning profile...).
+// Profiles from environment variables can't be deleted here.
+func DeleteProfile(id string) error {
+	profile, ok := Profiles.GetById(id)
+	if !ok {
+		return errors.Errorf("no signing profile %s", id)
+	}
+	if _, isEnv := profile.(*envProfile); isEnv {
+		return errors.New("this signing profile comes from environment variables, remove it there")
+	}
+	dir := util.SafeJoinFilePaths(profilesPath, id)
+	if dir == util.SafeJoinFilePaths(profilesPath) {
+		return errors.New("invalid profile id")
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return errors.WithMessage(err, "remove profile files")
+	}
+	Profiles.remove(id)
+	return nil
+}
+
+// ProfileKind describes a profile for the profile list: "Apple ID", "Certificate" or "Environment".
+func ProfileKind(profile Profile) string {
+	switch profile.(type) {
+	case *appleIdProfile:
+		return "Apple ID"
+	case *envProfile:
+		return "Environment"
+	}
+	if isAccount, _ := profile.IsAccount(); isAccount {
+		return "Developer account"
+	}
+	return "Certificate"
 }
 
 func (p *appleIdProfile) GetId() string {

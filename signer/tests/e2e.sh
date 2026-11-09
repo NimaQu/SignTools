@@ -107,3 +107,15 @@ fi
 
 curl -fsS -o signed.ipa "$B/apps/$app/signed"
 EXPECT_SIGNER="$EXPECT_SIGNER" python3 "$ROOT/tests/verify-ipa.py" signed.ipa "$TEAM" memory
+
+# delete the signing profile through the web UI
+page=$(curl -fsS $B/profiles)
+grep -q "data-id=\"$profile\"" <<<"$page" || fail "profile not on the profiles page"
+code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$B/profiles/$profile/delete")
+[[ "$code" == 302 ]] || fail "delete returned $code"
+page=$(curl -fsS $B/profiles); index=$(curl -fsS $B/)
+! grep -q "data-id=\"$profile\"" <<<"$page" && ! grep -q "value=\"$profile\"" <<<"$index" || fail "profile still listed"
+[[ ! -e "data/profiles/$profile" ]] || fail "profile files not removed"
+code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$B/profiles/..%2F..%2Fapps/delete")
+[[ -d data/apps ]] || fail "path traversal deleted data/apps"
+echo "signing profile deleted through the web UI"

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SignTools | Signing profiles</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand navbar-dark bg-dark py-3">
+      <div class="container px-4">
+        <ol class="breadcrumb bg-transparent py-2 my-0 me-auto text-white">
+          <li class="breadcrumb-item"><a class="text-white text-decoration-none" href="/">SignTools</a></li>
+          <li class="breadcrumb-item">Signing profiles</li>
+        </ol>
+        {{- if .AppleIdEnabled }}
+        <a class="btn btn-outline-light my-0" href="/appleid">Apple ID</a>
+        {{- end }}
+      </div>
+    </nav>
+    <div class="container px-4 py-4" style="max-width: 52rem">
+      {{- if .Error }}
+      <div class="alert alert-danger" id="error">{{ .Error }}</div>
+      {{- end }}
+      {{- if .Message }}
+      <div class="alert alert-success" id="message">{{ .Message }}</div>
+      {{- end }}
+      {{- if not .Profiles }}
+      <p class="text-muted">No signing profiles.</p>
+      {{- end }}
+      <ul class="list-group">
+        {{- range .Profiles }}
+        <li class="list-group-item d-flex justify-content-between align-items-center profile" data-id="{{ .Id }}">
+          <span>{{ .Name }} <span class="text-muted small">· {{ .Kind }} · {{ .Id }}</span></span>
+          {{- if eq .Kind "Environment" }}
+          <span class="text-muted small">set by environment variables</span>
+          {{- else }}
+          <form method="post" action="/profiles/{{ .Id }}/delete" class="m-0"
+            onsubmit="return confirm('Delete signing profile {{ .Name }}? {{ if eq .Kind "Apple ID" }}The Apple ID stays logged in.{{ else }}Its certificate and provisioning profile files are deleted.{{ end }}')">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+          </form>
+          {{- end }}
+        </li>
+        {{- end }}
+      </ul>
+      <p class="small text-muted mt-3">
+        Apps signed earlier stay installable; re-signing them needs another profile.
+      </p>
+    </div>
+  </body>
+</html>

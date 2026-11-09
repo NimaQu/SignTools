@@ -2,6 +2,7 @@ package storage
 
 import (
 	"SignTools/src/config"
+	"os"
 	"testing"
 )
 
@@ -61,5 +62,34 @@ func TestAppleIdProfileRoundTrip(t *testing.T) {
 	}
 	if _, ok := Profiles.GetById(id); ok {
 		t.Fatal("profile not removed on logout")
+	}
+}
+
+func TestDeleteProfile(t *testing.T) {
+	oldPath := profilesPath
+	profilesPath = t.TempDir()
+	defer func() { profilesPath = oldPath }()
+	Profiles = newProfileResolver()
+
+	p, err := CreateAppleIdProfile("a@b.c", "TEAM123456", "Team", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := p.(*appleIdProfile).resolvePath(ProfileRoot)
+	if err := DeleteProfile(p.GetId()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := Profiles.GetById(p.GetId()); ok {
+		t.Error("still registered")
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("profile dir not removed: %v", err)
+	}
+	if err := DeleteProfile(p.GetId()); err == nil {
+		t.Error("deleting a missing profile should fail")
+	}
+	// the profiles dir itself must never be removed
+	if _, err := os.Stat(profilesPath); err != nil {
+		t.Errorf("profiles dir gone: %v", err)
 	}
 }

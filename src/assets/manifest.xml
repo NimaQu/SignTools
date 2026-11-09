@@ -19,7 +19,7 @@
                     <key>bundle-identifier</key>
                     <string>{{ escape .BundleId }}</string>
                     <key>bundle-version</key>
-                    <string>2.0</string>
+                    <string>{{ if .Version }}{{ escape .Version }}{{ else }}2.0{{ end }}</string>
                     <key>kind</key>
                     <string>software</string>
                     <key>title</key>

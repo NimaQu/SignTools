@@ -1,18 +1,24 @@
+# syntax=docker/dockerfile:1
 # SignTools with built-in signing on Linux: the web service, signtools-portal (Apple ID login and
 # provisioning, built on Impactor's plume_core) and the Linux signer (rcodesign) in one image.
 
 FROM rust:1-bookworm AS portal
 WORKDIR /src/portal
 COPY portal/ ./
-RUN cargo build --release --locked && cp target/release/signtools-portal /signtools-portal
+# cache mounts: rebuilding after a change only recompiles what changed
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/src/portal/target \
+    cargo build --release --locked && cp target/release/signtools-portal /signtools-portal
 
 FROM golang:1.26-bookworm AS server
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY *.go ./
 COPY src ./src
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -buildvcs=false -o /SignTools
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -buildvcs=false -o /SignTools
 
 FROM python:3.12-slim-bookworm
 ARG RCODESIGN_VERSION=0.29.0

@@ -319,7 +319,10 @@ impl AnisetteClient {
         );
 
         let provision_ws_url =
-            format!("{}/v3/provisioning_session", self.url).replace("https://", "wss://");
+            format!("{}/v3/provisioning_session", self.url)
+                .replacen("https://", "wss://", 1)
+                // SignTools: a self-hosted server on the LAN / compose network is plain http
+                .replacen("http://", "ws://", 1);
         let (mut connection, _) = connect_async(&provision_ws_url).await?;
 
         #[derive(Deserialize)]

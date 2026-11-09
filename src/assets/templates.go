@@ -30,6 +30,8 @@ type Profile struct {
 	Id        string
 	Name      string
 	IsAccount bool
+	// signs with an Apple ID team: App IDs and provisioning profiles are created per app
+	IsAppleId bool
 }
 
 type Builder struct {
@@ -64,11 +66,12 @@ type IndexData struct {
 	Apps     []App
 	Profiles []Profile
 	Builders []Builder
-	// tus chunk size in bytes for browser uploads, 0 = no chunking
-	UploadChunkSize uint64
 	// import_dir is set: apps on the server can be signed from the web UI
 	ImportEnabled bool
-	ImportFiles   []ImportFile
+	// links to the Apple ID page / the in-process signing logs
+	AppleIdEnabled bool
+	LocalBuilder   bool
+	ImportFiles    []ImportFile
 	FormNames
 }
 

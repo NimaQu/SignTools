@@ -1,0 +1,25 @@
+builder:
+  # sign inside this service with the Linux signer (signer/sign.py); no Mac and no external builder
+  local:
+    enable: true
+# Public HTTPS address of this service: iPhones install via itms-services, which requires valid HTTPS.
+server_url: https://sign.example.com
+redirect_https: false
+save_dir: data
+cleanup_interval_mins: 1
+# big apps (10+ GB) take minutes to extract, hash and re-pack
+sign_timeout_mins: 60
+# copy apps here yourself (rsync, SMB, scp...) and pick them with the "Server" switch in the upload form;
+# they are hard-linked into save_dir (no copy). Must be on the same filesystem/mount as save_dir.
+import_dir: /data/import
+apple_id:
+  # log in with Apple IDs on the "Apple ID" page and sign with their teams: App IDs, capabilities
+  # (e.g. Increased Memory Limit), development certificate and provisioning profiles are created
+  # automatically, like Impactor. Devices must be registered in the team by yourself.
+  enable: true
+  # the anisette container from docker-compose.yml; empty = Impactor's default public server
+  anisette_url: http://anisette:6969
+basic_auth:
+  enable: true
+  username: "admin"
+  password: "CHANGE_ME"

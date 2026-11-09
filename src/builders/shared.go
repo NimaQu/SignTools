@@ -15,4 +15,4 @@ type Builder interface {
 }
 
 // static check to ensure all methods are implemented
-var _ = []Builder{&GitHub{}, &Semaphore{}, &SelfHosted{}}
+var _ = []Builder{&GitHub{}, &Semaphore{}, &SelfHosted{}, &Local{}}

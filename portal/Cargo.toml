@@ -1,0 +1,38 @@
+[package]
+name = "signtools-portal"
+version = "0.1.0"
+edition = "2024"
+description = "Apple ID login and developer portal provisioning for SignTools, built on Impactor's plume_core"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "signtools-portal"
+path = "src/main.rs"
+
+[dependencies]
+plume_core = { git = "https://github.com/claration/Impactor", rev = "b13d99559febd63e3710dfdd0ef8cdd78d10ae13" }
+plume_store = { git = "https://github.com/claration/Impactor", rev = "b13d99559febd63e3710dfdd0ef8cdd78d10ae13" }
+tokio = { version = "1.43", features = ["rt-multi-thread", "macros", "fs"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+plist = "1.8"
+clap = { version = "4.5", features = ["derive", "env"] }
+env_logger = "0.11"
+log = "0.4"
+anyhow = "1.0"
+
+[patch.crates-io]
+# the apple-codesign fork Impactor's workspace patches in (plume_core needs its extra API)
+apple-codesign = { git = "https://github.com/claration/Impactor", rev = "b13d99559febd63e3710dfdd0ef8cdd78d10ae13" }
+
+[patch."https://github.com/claration/Impactor"]
+# + ANISETTE_URL_V3 env override, to use a self-hosted anisette server
+omnisette = { path = "vendor/omnisette" }
+
+[profile.release]
+codegen-units = 4
+lto = "thin"
+opt-level = "s"
+strip = "symbols"

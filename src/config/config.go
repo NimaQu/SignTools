@@ -18,6 +18,17 @@ import (
 	"strings"
 )
 
+// AppleId enables logging in with Apple IDs (signtools-portal) and signing with their teams.
+type AppleId struct {
+	Enable bool `yaml:"enable"`
+	// the signtools-portal binary
+	PortalBin string `yaml:"portal_bin"`
+	// saved sessions and certificate private keys; default <save_dir>/portal
+	DataDir string `yaml:"data_dir"`
+	// anisette v3 server, e.g. http://anisette:6969; empty = Impactor's default public server
+	AnisetteUrl string `yaml:"anisette_url"`
+}
+
 type BasicAuth struct {
 	Enable   bool   `yaml:"enable"`
 	Username string `yaml:"username"`
@@ -28,6 +39,7 @@ type Builder struct {
 	GitHub     builders.GitHubData     `yaml:"github"`
 	Semaphore  builders.SemaphoreData  `yaml:"semaphore"`
 	SelfHosted builders.SelfHostedData `yaml:"selfhosted"`
+	Local      builders.LocalData      `yaml:"local"`
 }
 
 func (b *Builder) MakeEnabled() map[string]builders.Builder {
@@ -41,6 +53,9 @@ func (b *Builder) MakeEnabled() map[string]builders.Builder {
 	if b.SelfHosted.Enable {
 		results["SelfHosted"] = builders.MakeSelfHosted(&b.SelfHosted)
 	}
+	if b.Local.Enable {
+		results["Local"] = builders.MakeLocal(&b.Local)
+	}
 	return results
 }
 
@@ -51,9 +66,9 @@ type File struct {
 	SaveDir             string    `yaml:"save_dir"`
 	CleanupIntervalMins uint64    `yaml:"cleanup_interval_mins"`
 	SignTimeoutMins     uint64    `yaml:"sign_timeout_mins"`
-	UploadChunkSizeMB   uint64    `yaml:"upload_chunk_size_mb"` // browser upload request size, 0 = no chunking
-	LocalTransferDir    string    `yaml:"local_transfer_dir"`   // builder on the same machine: exchange files by path, "" = off
-	ImportDir           string    `yaml:"import_dir"`           // apps put on the server (rsync, SMB...) to sign from the web UI, "" = off
+	LocalTransferDir    string    `yaml:"local_transfer_dir"` // builder on the same machine: exchange files by path, "" = off
+	ImportDir           string    `yaml:"import_dir"`         // apps put on the server (rsync, SMB...) to sign from the web UI, "" = off
+	AppleId             AppleId   `yaml:"apple_id"`
 	BasicAuth           BasicAuth `yaml:"basic_auth"`
 }
 
@@ -81,12 +96,21 @@ func createDefaultFile() *File {
 				Url:    "http://192.168.1.133:8090",
 				Key:    "SOME_SECRET_KEY",
 			},
+			Local: builders.LocalData{
+				Enable:     false,
+				SignScript: "signer/sign.py",
+				Python:     "python3",
+			},
 		},
 		ServerUrl:           "http://localhost:8080",
 		RedirectHttps:       false,
 		SaveDir:             "data",
 		SignTimeoutMins:     30,
 		CleanupIntervalMins: 1,
+		AppleId: AppleId{
+			Enable:    false,
+			PortalBin: "signtools-portal",
+		},
 		BasicAuth: BasicAuth{
 			Enable:   false,
 			Username: "admin",

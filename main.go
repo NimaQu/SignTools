@@ -88,6 +88,7 @@ func main() {
 	}
 
 	log.Info().Str("url", config.Current.ServerUrl).Msg("using server url")
+	setupLocalSigning(*port)
 	serve(*host, *port)
 }
 
@@ -148,6 +149,7 @@ func serve(host string, port uint64) {
 	}
 
 	e.GET("/", renderIndex, basicAuth)
+	registerAppleIdRoutes(e, basicAuth)
 	e.GET("/favicon.png", getFavIcon, basicAuth)
 	e.POST("/apps", uploadUnsignedApp, basicAuth)
 	getAndHead(e, "/apps/:id/signed", appResolver(getSignedApp), appResolver(getSignedApp))
@@ -859,10 +861,11 @@ func renderIndex(c echo.Context) error {
 		return err
 	}
 	data := assets.IndexData{
-		FormNames:       formNames,
-		UploadChunkSize: config.Current.UploadChunkSizeMB * 1024 * 1024,
-		ImportEnabled:   config.Current.ImportDir != "",
+		FormNames:      formNames,
+		ImportEnabled:  config.Current.ImportDir != "",
+		AppleIdEnabled: portalClient != nil,
 	}
+	_, data.LocalBuilder = config.Current.Builder["Local"]
 	if data.ImportEnabled {
 		importFiles, err := listImportFiles()
 		if err != nil {
@@ -957,6 +960,7 @@ func renderIndex(c echo.Context) error {
 			Id:        profile.GetId(),
 			Name:      name,
 			IsAccount: isAccount,
+			IsAppleId: storage.IsAppleIdProfile(profile),
 		})
 	}
 	for builderId := range config.Current.Builder {

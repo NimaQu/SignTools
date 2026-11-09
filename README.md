@@ -14,6 +14,12 @@
     </p>
 </p>
 
+> **This fork** signs on Linux inside the service itself (no Mac, no external builder) and can provision
+> through an Apple ID like [Impactor](https://github.com/claration/Impactor): explicit App IDs with the
+> capabilities an app asks for (e.g. Increased Memory Limit), development certificate and profiles are
+> created automatically. Large apps can be dropped onto the server (rsync / SMB) and signed from the web UI.
+> See [LINUX.md](LINUX.md) (中文).
+
 ## Introduction
 
 SignTools is a sideloading platform that takes a different approach from any similar tools. It consists of two components — a **service** and a **builder**. The builder is a macOS machine which performs signing using official Apple software. Doing so means high reliability and compatibility. The service (this repo) can be hosted anywhere, and it provides a web interface for you to upload, sign, and download apps, using the builder where necessary. Having the web service means that you don't need anything installed on your phone, and you can still sideload without a computer.

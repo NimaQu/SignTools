@@ -18,6 +18,12 @@ var TwoFactorHtml string
 //go:embed rename.gohtml
 var RenameHtml string
 
+//go:embed appleid.gohtml
+var AppleIdHtml string
+
+//go:embed localbuilder.gohtml
+var LocalBuilderHtml string
+
 //go:embed manifest.xml
 var ManifestPlist string
 

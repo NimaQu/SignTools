@@ -54,6 +54,12 @@
         <ol class="breadcrumb bg-transparent py-2 my-0 me-auto text-white">
           <li class="breadcrumb-item"><a href="/">SignTools</a></li>
         </ol>
+        {{- if .AppleIdEnabled }}
+        <a class="btn btn-outline-light my-0 me-2" href="/appleid" id="lnkAppleId">Apple ID</a>
+        {{- end }}
+        {{- if .LocalBuilder }}
+        <a class="btn btn-outline-light my-0 me-3" href="/local-builder" id="lnkLogs">Logs</a>
+        {{- end }}
         <div class="form-check form-switch ms-auto me-4">
           <input class="form-check-input" type="checkbox" id="chkAutoRefresh" />
           <label class="form-check-label text-white" for="chkAutoRefresh" id="lblAutoRefresh">Refresh</label>
@@ -146,7 +152,7 @@
                     <select class="form-select" id="formProfile" name="{{.FormProfileId}}" required>
                       <option selected disabled value="">Choose...</option>
                       {{range $_, $profile := .Profiles}}
-                      <option value="{{$profile.Id}}" account="{{$profile.IsAccount}}">{{$profile.Name}}</option>
+                      <option value="{{$profile.Id}}" account="{{$profile.IsAccount}}" appleid="{{$profile.IsAppleId}}">{{$profile.Name}}</option>
                       {{end}}
                     </select>
                   </div>
@@ -521,9 +527,6 @@
     uppy.use(Uppy.Tus, {
       endpoint: "/tus/",
       parallelUploads: 6,
-      {{- if .UploadChunkSize }}
-      chunkSize: {{ .UploadChunkSize }},
-      {{- end }}
     });
 
     function addTusFileHook(formItem, uploadType) {
@@ -661,6 +664,14 @@
         }
         formIdProv.disabled = true;
         formIdEncode.checked = true;
+        formIdEncode.disabled = false;
+      } else if (selectedOption.getAttribute("appleid") === "true") {
+        // App IDs are registered per app; the original id falls back to "<id>.<team id>" when taken
+        if (formIdProv.checked) {
+          formIdOriginal.checked = true;
+        }
+        formIdProv.disabled = true;
+        formIdEncode.checked = false;
         formIdEncode.disabled = false;
       } else {
         formIdProv.disabled = false;

@@ -250,3 +250,11 @@ modules.xml
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/go,intellij+all,vscode
+# signtools-portal build output
+portal/target/
+# deployment data
+/data/
+/signer-cfg.yml
+# prebuilt support library injected together with tweaks
+!signer/libsubstrate/*.dylib
+!/signer-cfg.example.yml

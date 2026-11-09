@@ -91,6 +91,10 @@ type appleIdAccount struct {
 	portal.Account
 	Teams      []appleIdTeam
 	TeamsError string
+	// the saved session was rejected by Apple: show a re-login form
+	SessionExpired bool
+	// highlighted because a failed signing linked here
+	Relogin bool
 }
 
 type appleIdTwoFactor struct {
@@ -105,6 +109,8 @@ type appleIdPage struct {
 	TwoFactor *appleIdTwoFactor
 	Error     string
 	Message   string
+	// prefill for the login form (?relogin=email)
+	LoginEmail string
 }
 
 func renderAppleId(c echo.Context, page appleIdPage) error {
@@ -113,11 +119,17 @@ func renderAppleId(c echo.Context, page appleIdPage) error {
 		if err != nil && page.Error == "" {
 			page.Error = err.Error()
 		}
+		relogin := c.QueryParam("relogin")
+		if page.LoginEmail == "" {
+			page.LoginEmail = relogin
+		}
 		for _, account := range accounts {
-			entry := appleIdAccount{Account: account}
-			teams, err := portalClient.Teams(account.Email)
+			entry := appleIdAccount{Account: account, Relogin: account.Email == relogin}
+			// like Impactor before signing: listing the teams tests the saved session
+			teams, expired, err := portalClient.TeamsStatus(account.Email)
 			if err != nil {
 				entry.TeamsError = err.Error()
+				entry.SessionExpired = expired
 			}
 			for _, team := range teams {
 				t := appleIdTeam{Team: team}
@@ -300,4 +312,27 @@ func renderLocalBuilder(c echo.Context) error {
 		return err
 	}
 	return t.Execute(c.Response(), views)
+}
+
+// appFailHint explains a failure the signer reported a reason for, with a link to fix it.
+func appFailHint(app storage.App, profileId string) (hint string, link string, linkText string) {
+	reason, err := app.GetString(storage.AppFailReason)
+	if err != nil || reason == "" {
+		return "", "", ""
+	}
+	email := ""
+	if profile, ok := storage.Profiles.GetById(profileId); ok && storage.IsAppleIdProfile(profile) {
+		email, _ = profile.GetString(storage.ProfileAppleId)
+	}
+	reloginLink := "/appleid"
+	if email != "" {
+		reloginLink += "?relogin=" + url.QueryEscape(email)
+	}
+	switch reason {
+	case "appleid_session_expired":
+		return "The Apple ID session expired.", reloginLink, "Log in again, then re-sign"
+	case "appleid_team_missing":
+		return "The team is no longer available for this Apple ID.", "/appleid", "Pick another team"
+	}
+	return "", "", ""
 }

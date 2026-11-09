@@ -356,9 +356,22 @@ func renameApp(c echo.Context, app storage.App) error {
 	return c.Redirect(302, "/")
 }
 
+// reasons a signer may report with /jobs/:id/fail?reason=..., shown on the app in the web UI
+var knownFailReasons = map[string]bool{
+	"appleid_session_expired": true,
+	"appleid_team_missing":    true,
+}
+
 func failJob(c echo.Context, job *storage.ReturnJob) error {
 	if !storage.Jobs.DeleteById(job.Id) {
 		return errors.New("unable to delete return job " + job.Id)
+	}
+	if reason := c.QueryParam("reason"); knownFailReasons[reason] {
+		if app, ok := storage.Apps.Get(job.AppId); ok {
+			if err := app.SetString(storage.AppFailReason, reason); err != nil {
+				logErrApp(err, app).Msg("save fail reason")
+			}
+		}
 	}
 	return c.NoContent(200)
 }
@@ -820,6 +833,9 @@ func resignApp(c echo.Context, app storage.App) error {
 	if err := app.RemoveFile(storage.AppSignedFile); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if err := app.RemoveFile(storage.AppFailReason); err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	if err := app.ResetModTime(); err != nil {
 		return err
 	}
@@ -917,6 +933,11 @@ func renderIndex(c echo.Context) error {
 			status = assets.AppStatusFailed
 		}
 
+		var failHint, failLink, failLinkText string
+		if status == assets.AppStatusFailed {
+			failHint, failLink, failLinkText = appFailHint(app, profileId)
+		}
+
 		tweakCount := 0
 		if tweaks, err := app.ReadDir(storage.TweaksDir); err == nil {
 			tweakCount = len(tweaks)
@@ -932,6 +953,9 @@ func renderIndex(c echo.Context) error {
 			WorkflowUrl:         workflowUrl,
 			ProfileName:         profileName,
 			BundleId:            bundleId,
+			FailHint:            failHint,
+			FailLink:            failLink,
+			FailLinkText:        failLinkText,
 			InstallUrl:          path.Join("/apps", app.GetId(), "install"),
 			DownloadSignedUrl:   path.Join("/apps", app.GetId(), "signed"),
 			DownloadUnsignedUrl: path.Join("/apps", app.GetId(), "unsigned"),

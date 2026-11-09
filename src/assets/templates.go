@@ -17,6 +17,10 @@ type App struct {
 	ProfileName         string
 	BundleId            string
 	TweakCount          int
+	// failed: what to do about it, e.g. log in to the Apple ID again
+	FailHint     string
+	FailLink     string
+	FailLinkText string
 }
 
 const (

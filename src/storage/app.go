@@ -22,7 +22,9 @@ const (
 	AppProfileId    = FSName("profile_id")
 	AppBuilderId    = FSName("builder_id")
 	AppBundleName   = FSName("bundle_name")
-	TweaksDir       = FSName("tweaks")
+	// why the last signing failed, if the signer said (e.g. "appleid_session_expired")
+	AppFailReason = FSName("fail_reason")
+	TweaksDir     = FSName("tweaks")
 )
 
 type App interface {

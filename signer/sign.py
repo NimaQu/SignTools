@@ -411,9 +411,11 @@ def load_pem_identity(pem_file: Path) -> Identity:
 
 
 class PortalError(Exception):
-    def __init__(self, message: str, code: Optional[int]):
+    def __init__(self, message: str, code: Optional[int], session_expired: bool = False, team_missing: bool = False):
         super().__init__(message)
         self.code = code
+        self.session_expired = session_expired
+        self.team_missing = team_missing
 
 
 class Portal:
@@ -438,6 +440,8 @@ class Portal:
             raise PortalError(
                 out.get("error") or decode_clean(result.stderr) or f"{command} failed ({result.returncode})",
                 out.get("code"),
+                bool(out.get("session_expired")),
+                bool(out.get("team_missing")),
             )
         return out
 
@@ -975,6 +979,7 @@ class Signer:
             print("Using original bundle id (falls back to <id>.<team id> if it is taken)")
             candidates = [self.old_main_bundle_id, f"{self.old_main_bundle_id}.{team}"]
         errors = []
+        failures: List[PortalError] = []
         for candidate in candidates:
             try:
                 self.__provision(main_app, candidate)
@@ -982,7 +987,10 @@ class Signer:
                     print(f"'{candidates[0]}' is not available ({errors[-1]}), using '{candidate}'")
                 return candidate
             except PortalError as e:
+                failures.append(e)
                 errors.append(f"{e} (code {e.code})" if e.code is not None else str(e))
+        if any(e.session_expired for e in failures):
+            raise next(e for e in failures if e.session_expired)
         raise Exception("Could not register an App ID: " + " / ".join(errors))
 
     def __prepare_primary(self, component: Path) -> ComponentData:
@@ -1474,15 +1482,27 @@ if __name__ == "__main__":
 
     work_dir = Path(tempfile.mkdtemp(prefix="ios-signer-"))
     failed = False
+    fail_reason = ""
     try:
         run(work_dir)
-    except Exception:
+    except Exception as e:
         failed = True
         traceback.print_exc()
+        # tell the service why, so the web UI can point at the fix (log in again...)
+        err: Optional[BaseException] = e
+        while err is not None:
+            if isinstance(err, PortalError):
+                if err.session_expired:
+                    fail_reason = "appleid_session_expired"
+                elif err.team_missing:
+                    fail_reason = "appleid_team_missing"
+                break
+            err = err.__cause__ or err.__context__
     finally:
         print("Cleaning up...")
         shutil.rmtree(work_dir, ignore_errors=True)
         if failed:
             if not local_only:
-                curl_with_auth(f"{secret_url}/jobs/{job_id}/fail", check=False)
+                reason = f"?reason={fail_reason}" if fail_reason else ""
+                curl_with_auth(f"{secret_url}/jobs/{job_id}/fail{reason}", check=False)
             sys.exit(1)

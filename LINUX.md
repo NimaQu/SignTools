@@ -35,6 +35,13 @@ iOS 一键安装需要有效的 HTTPS，在前面放 Caddy 或 nginx 反代到 `
 3. 大 IPA 用 rsync / SMB 放进 `data/import/`。上传窗口里打开 **Server** 开关，选择文件后提交。小文件也可以照常在浏览器上传。
 4. 签名进度和日志在首页的 **Logs**（`/local-builder`）里查看。
 
+### 会话失效
+
+服务器只保存 Apple 返回的会话凭证，不保存密码。和 Impactor 一样，每次签名前都会先用它列一次 team 来检查会话是否有效，并确认这个 team 还在账号里：
+
+- **Apple ID 页面**：每个账号会显示 *Session valid* / *Session expired*。失效时直接在账号下面输入密码重新登录（含 2FA）。签名配置和证书都会保留，不用重新添加。如果是网络或 anisette 出问题导致检查失败，会显示 *Status unknown*，不会让你重新登录。
+- **签名失败时**：会话失效导致的失败，首页那个 App 下面会显示「The Apple ID session expired」，并附上跳转到重新登录的链接。登录后点重签即可。team 不在账号里了，会提示换一个 team。
+
 ### Bundle ID
 
 App ID 在整个苹果生态里是唯一的。选「保留原 ID」时，会先尝试注册原来的 Bundle ID。如果已经被别人注册了（比如别人也签过同一个 nxnative 游戏），会自动改用 `<原ID>.<TeamID>`，App 扩展也会跟着改。你也可以选自定义 ID，或者勾选「编码 ID」。
@@ -96,5 +103,5 @@ go test ./...
 
 - 真实的 Apple 登录和开发者后台调用**没有在真实账号上测试过**，测试用的都是模拟的 portal。登录、证书、App ID 和描述文件的接口直接用的是 Impactor 的实现。
 - App Groups 没有处理（Impactor 会自动建 group，这里没做）。请求 App Groups 的 App 签出来不会带这项权限。
-- Apple ID 会话过期后需要在网页上重新登录。
+- Apple ID 会话过期后需要在网页上重新登录（密码 + 2FA），无法自动续期。
 - 设备需要自己在开发者后台注册。描述文件只包含签名那一刻已注册的设备，新加设备后要重签一次。

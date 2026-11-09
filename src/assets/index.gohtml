@@ -440,6 +440,10 @@
                 {{end}} {{$app.ProfileName}} <br />
                 {{if eq $app.Status 0 }} Processing {{else if eq $app.Status 1 }} Signed {{else if eq $app.Status 2 }}
                 Failed {{else if eq $app.Status 3 }} Waiting {{end}} <br />
+                {{- if $app.FailHint }}
+                <span class="text-danger fail-hint">{{ $app.FailHint }}
+                  <a href="{{ $app.FailLink }}">{{ $app.FailLinkText }}</a></span><br />
+                {{- end }}
                 {{$app.ModTime}}
               </p>
               <div class="d-flex flex-wrap justify-content-end">

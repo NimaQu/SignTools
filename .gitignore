@@ -258,3 +258,4 @@ portal/target/
 # prebuilt support library injected together with tweaks
 !signer/libsubstrate/*.dylib
 !/signer-cfg.example.yml
+__pycache__/

@@ -9,7 +9,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./signer-cfg.yml:/signer-cfg.yml:ro
+      # writable: SignTools writes the config back on start (adds missing defaults)
+      - ./signer-cfg.yml:/signer-cfg.yml
       # apps, profiles, Apple ID sessions + certificate keys (data/portal), work dir, import dir
       - ./data:/data
     depends_on:

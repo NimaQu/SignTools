@@ -1,7 +1,8 @@
 [package]
 name = "omnisette"
 # Vendored from https://github.com/claration/Impactor (3rdparty/omnisette, rev b13d995).
-# Only change: ANISETTE_URL_V3 / ANISETTE_URL env vars override the default anisette servers.
+# Changes: ANISETTE_URL_V3 / ANISETTE_URL env vars override the default anisette servers;
+# plain http anisette URLs provision over ws:// (upstream only maps https -> wss).
 edition = "2024"
 version = "2.7.2"
 license = "MIT"

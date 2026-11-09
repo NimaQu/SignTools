@@ -1,0 +1,28 @@
+# SignTools with built-in Linux signing and Apple ID provisioning.
+#   cp signer-cfg.example.yml signer-cfg.yml   # then edit server_url and the password
+#   mkdir -p data/import && docker compose up -d --build
+# Big apps: copy them into ./data/import (rsync / SMB / scp) and pick them in the web UI ("Server" switch).
+services:
+  signtools:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./signer-cfg.yml:/signer-cfg.yml:ro
+      # apps, profiles, Apple ID sessions + certificate keys (data/portal), work dir, import dir
+      - ./data:/data
+    depends_on:
+      - anisette
+
+  # anisette data for Apple ID logins, so they don't depend on a third-party server
+  anisette:
+    image: dadoum/anisette-v3-server:latest
+    restart: unless-stopped
+    expose:
+      - "6969"
+    volumes:
+      - anisette-v3:/home/Alcoholic/.config/anisette-v3/lib/
+
+volumes:
+  anisette-v3:

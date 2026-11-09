@@ -67,6 +67,12 @@ builder:
     token: YOUR_SEMAPHORE_TOKEN
     ref: refs/heads/master
     secret_name: ios-signer
+  # sign inside this service on Linux (this fork, see LINUX.md); needs python3, rcodesign, unzip, zip
+  local:
+    enable: false
+    sign_script: signer/sign.py
+    # where jobs are extracted and re-packed, default <save_dir>/work
+    work_dir: ""
   # your own self-hosted Mac builder
   selfhosted:
     enable: false
@@ -87,6 +93,23 @@ save_dir: data
 cleanup_interval_mins: 1
 # apps that have been processing for more than this time will be marked as failed
 sign_timeout_mins: 15
+# a folder on this server for apps copied there by other means (rsync, SMB, scp...), e.g. very large
+# ones; the web UI's "Server" switch lists the .ipa files in it. They are hard-linked into save_dir
+# (no copy, the file stays in place), which needs both on the same filesystem/mount. Empty = off.
+import_dir: ""
+# a builder on the same machine works inside this folder and exchanges apps by path instead of over
+# HTTP; it must see the folder and save_dir at the same paths as this service. Set automatically to
+# builder.local's work_dir when that builder is enabled. Empty = off.
+local_transfer_dir: ""
+# Apple ID logins (this fork, see LINUX.md): sign with a team of an Apple ID; App IDs, capabilities,
+# development certificate and provisioning profiles are created automatically, like Impactor
+apple_id:
+  enable: false
+  portal_bin: signtools-portal
+  # default <save_dir>/portal; holds sessions and certificate private keys
+  data_dir: ""
+  # anisette v3 server, e.g. a self-hosted anisette-v3-server; empty = Impactor's default
+  anisette_url: ""
 # this protects the web ui with a username and password
 # definitely enable it if you are using a tunnel provider
 basic_auth:

@@ -30,6 +30,8 @@ type Profile struct {
 	Id        string
 	Name      string
 	IsAccount bool
+	// signs with an Apple ID team: App IDs and provisioning profiles are created per app
+	IsAppleId bool
 }
 
 type Builder struct {
@@ -57,13 +59,25 @@ type FormNames struct {
 	FormIdPatch         string
 	FormIdForceOriginal string
 	FormBundleName      string
+	FormFileLocal       string
 }
 
 type IndexData struct {
 	Apps     []App
 	Profiles []Profile
 	Builders []Builder
+	// import_dir is set: apps on the server can be signed from the web UI
+	ImportEnabled bool
+	// links to the Apple ID page / the in-process signing logs
+	AppleIdEnabled bool
+	LocalBuilder   bool
+	ImportFiles    []ImportFile
 	FormNames
+}
+
+type ImportFile struct {
+	Name string
+	Size string
 }
 
 type ManifestData struct {
